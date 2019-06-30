@@ -61,6 +61,16 @@ class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
         val rd1     = slave(MemRd(config))
     }
 
+    // Clock wr transaction for forwarding (writeFirst mode: read gets the new write value)
+    val wr0_ena_p1  = RegNext(io.wr0.ena)
+    val wr0_addr_p1 = RegNext(io.wr0.addr)
+    val wr0_data_p1 = RegNext(io.wr0.data)
+
+    // RD0 Port
+
+    val rd0_ena_p1  = RegNext(io.rd0.ena)
+    val rd0_addr_p1 = RegNext(io.rd0.addr)
+
     val u_mem0 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
     u_mem0.write(
         enable    = io.wr0.ena,
@@ -68,10 +78,17 @@ class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
         data      = io.wr0.data
     )
 
-    io.rd0.data := u_mem0.readSync(
+    val rd0_data_mem = u_mem0.readSync(
         enable    = io.rd0.ena,
         address   = io.rd0.addr
     )
+
+    io.rd0.data := (wr0_ena_p1 && rd0_ena_p1 && wr0_addr_p1 === rd0_addr_p1) ? wr0_data_p1 | rd0_data_mem
+
+    // RD1 Port
+    
+    val rd1_ena_p1  = RegNext(io.rd1.ena)
+    val rd1_addr_p1 = RegNext(io.rd1.addr)
 
     val u_mem1 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
     u_mem1.write(
@@ -80,9 +97,12 @@ class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
         data      = io.wr0.data
     )
 
-    io.rd1.data := u_mem0.readSync(
+    val rd1_data_mem = u_mem1.readSync(
         enable    = io.rd1.ena,
         address   = io.rd1.addr
     )
+
+    io.rd1.data := (wr0_ena_p1 && rd1_ena_p1 && wr0_addr_p1 === rd1_addr_p1) ? wr0_data_p1 | rd1_data_mem
+
 }
 
