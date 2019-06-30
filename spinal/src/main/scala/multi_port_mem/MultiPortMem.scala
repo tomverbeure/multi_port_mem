@@ -21,47 +21,47 @@ package multi_port_mem
 import spinal.core._
 import spinal.lib._
 
-import scala.util.Random
+case class MemConfig(
+    memorySize      : Int,
+    dataWidth       : Int
+  )
+{
 
-//Hardware definition
-class MultiPortMem extends Component {
-  val io = new Bundle {
-    val cond0 = in  Bool
-    val cond1 = in  Bool
-    val flag  = out Bool
-    val state = out UInt(8 bits)
-  }
-  val counter = Reg(UInt(8 bits)) init(0)
-
-  when(io.cond0){
-    counter := counter + 1
-  }
-
-  io.state := counter
-  io.flag  := (counter === 0) | io.cond1
+    def addrWidth = log2Up(memorySize)
 }
 
-//Generate the MultiPortMem's Verilog
-object MultiPortMemVerilog {
-  def main(args: Array[String]) {
-    SpinalVerilog(new MultiPortMem)
-  }
+case class MemRd(config: MemConfig) extends Bundle with IMasterSlave
+{
+    val ena         = Bool
+    val addr        = UInt(config.addrWidth bits)
+    val data        = Bits(config.dataWidth bits)
+
+    override def asMaster(): Unit = {
+        out(ena, addr)
+        in(data)
+    }
 }
 
-//Generate the MultiPortMem's VHDL
-object MultiPortMemVhdl {
-  def main(args: Array[String]) {
-    SpinalVhdl(new MultiPortMem)
-  }
+case class MemWr(config: MemConfig) extends Bundle with IMasterSlave
+{
+    val ena         = Bool
+    val addr        = UInt(config.addrWidth bits)
+    val data        = Bits(config.dataWidth bits)
+
+    override def asMaster(): Unit = {
+        out(ena, addr, data)
+    }
 }
 
 
-//Define a custom SpinalHDL configuration with synchronous reset instead of the default asynchronous one. This configuration can be resued everywhere
-object MySpinalConfig extends SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC))
+class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
+    val io = new Bundle {
+        val wr0     = slave(MemWr(config))
+        val rd0     = slave(MemRd(config))
+        val rd1     = slave(MemRd(config))
+    }
 
-//Generate the MultiPortMem's Verilog using the above custom configuration.
-object MultiPortMemVerilogWithCustomConfig {
-  def main(args: Array[String]) {
-    MySpinalConfig.generateVerilog(new MultiPortMem)
-  }
+    io.rd0.data   := io.wr0.data
+    io.rd1.data   := io.wr0.data
 }
+
