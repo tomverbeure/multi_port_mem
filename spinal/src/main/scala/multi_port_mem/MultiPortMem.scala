@@ -61,7 +61,28 @@ class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
         val rd1     = slave(MemRd(config))
     }
 
-    io.rd0.data   := io.wr0.data
-    io.rd1.data   := io.wr0.data
+    val u_mem0 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
+    u_mem0.write(
+        enable    = io.wr0.ena,
+        address   = io.wr0.addr,
+        data      = io.wr0.data
+    )
+
+    io.rd0.data := u_mem0.readSync(
+        enable    = io.rd0.ena,
+        address   = io.rd0.addr
+    )
+
+    val u_mem1 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
+    u_mem1.write(
+        enable    = io.wr0.ena,
+        address   = io.wr0.addr,
+        data      = io.wr0.data
+    )
+
+    io.rd1.data := u_mem0.readSync(
+        enable    = io.rd1.ena,
+        address   = io.rd1.addr
+    )
 }
 
