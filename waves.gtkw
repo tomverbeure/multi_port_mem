@@ -1,0 +1,43 @@
+[*]
+[*] GTKWave Analyzer v3.3.90 (w)1999-2018 BSI
+[*] Sun Jun 30 02:59:09 2019
+[*]
+[dumpfile] "/home/tom/projects/multi_port_mem/spinal/simWorkspace/MultiPortMemTop/test.vcd"
+[dumpfile_mtime] "Sun Jun 30 02:58:21 2019"
+[dumpfile_size] 3447
+[savefile] "/home/tom/projects/multi_port_mem/waves.gtkw"
+[timestart] 0
+[size] 1721 910
+[pos] 169 376
+*-7.000000 185 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.MultiPortMemTop.
+[sst_width] 225
+[signals_width] 166
+[sst_expanded] 1
+[sst_vpaned_height] 271
+@28
+TOP.clk
+@201
+-
+@28
+TOP.io_wr0_ena
+@22
+TOP.io_wr0_addr[9:0]
+TOP.io_wr0_data[31:0]
+@200
+-
+@28
+TOP.io_wr1_ena
+@22
+TOP.io_wr1_addr[9:0]
+TOP.io_wr1_data[31:0]
+@200
+-
+@28
+TOP.io_rd0_ena
+@22
+TOP.io_rd0_addr[9:0]
+TOP.io_rd0_data[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

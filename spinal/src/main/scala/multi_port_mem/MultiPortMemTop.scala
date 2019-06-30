@@ -27,14 +27,14 @@ class MultiPortMemTop extends Component {
 
     val io = new Bundle {
         val wr0     = slave(MemWr(memConfig))
+        val wr1     = slave(MemWr(memConfig))
         val rd0     = slave(MemRd(memConfig))
-        val rd1     = slave(MemRd(memConfig))
     }
 
-    val u_mem = new MultiPortMem_1w_2rs(memConfig)
+    val u_mem = new MultiPortMem_2w_1rs(memConfig)
     u_mem.io.wr0      <> io.wr0
+    u_mem.io.wr1      <> io.wr1
     u_mem.io.rd0      <> io.rd0
-    u_mem.io.rd1      <> io.rd1
 
 }
 
@@ -44,14 +44,3 @@ object MultiPortMemTopVerilog {
     }
 }
 
-/*
-//Define a custom SpinalHDL configuration with synchronous reset instead of the default asynchronous one. This configuration can be resued everywhere
-object MySpinalConfig extends SpinalConfig(defaultConfigForClockDomains = ClockDomainConfig(resetKind = SYNC))
-
-//Generate the MultiPortMem's Verilog using the above custom configuration.
-object MultiPortMemVerilogWithCustomConfig {
-  def main(args: Array[String]) {
-    MySpinalConfig.generateVerilog(new MultiPortMem)
-  }
-}
-*/
