@@ -82,7 +82,7 @@ class Mem_1w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolicy = dontC
     else {
         val rd_eq_wr = io.wr_addr === io.rd_addr
 
-        val bypass_ena_p1 = RegNextWhen(io.wr_ena && rd_eq_wr, io.rd_ena)
+        val bypass_ena_p1 = RegNext(io.wr_ena && rd_eq_wr)
         val wr_data_p1    = RegNextWhen(io.wr_data, io.wr_ena && io.rd_ena && rd_eq_wr)
 
         io.rd_data := bypass_ena_p1 ? wr_data_p1 | rd_data_mem
@@ -144,7 +144,7 @@ class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
 
 }
 
-class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
+class MultiPortMem_2w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolicy = dontCare) extends Component {
     val io = new Bundle {
         val wr0     = slave(MemWr(config))
         val wr1     = slave(MemWr(config))
@@ -230,17 +230,18 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
     // Final output
     //============================================================
 
+    if (readUnderWrite == dontCare || readUnderWrite == readFirst)
+        io.rd0.data := bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1
+    else {
+        val rd0_eq_wr0      = io.wr0.addr === io.rd0.addr
+        val bypass0_ena_p1  = RegNext(io.wr0.ena && rd0_eq_wr0)
 
-    val rd0_eq_wr0      = io.wr0.addr === io.rd0.addr
-    val bypass0_ena_p1  = RegNextWhen(io.wr0.ena && rd0_eq_wr0, io.rd0.ena)
-    val bypass0_data_p1 = RegNextWhen(io.wr0.data, io.wr0.ena && io.rd0.ena && rd0_eq_wr0)
+        val rd0_eq_wr1      = io.wr1.addr === io.rd0.addr
+        val bypass1_ena_p1  = RegNext(io.wr1.ena && rd0_eq_wr1)
 
-    val rd0_eq_wr1      = io.wr1.addr === io.rd0.addr
-    val bypass1_ena_p1  = RegNextWhen(io.wr1.ena && rd0_eq_wr1, io.rd0.ena)
-    val bypass1_data_p1 = RegNextWhen(io.wr1.data, io.wr1.ena && io.rd0.ena && rd0_eq_wr1)
-
-    io.rd0.data :=  bypass0_ena_p1 ? bypass0_data_p1 | 
-                   (bypass1_ena_p1 ? bypass1_data_p1 | 
-                                    bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1) 
+        io.rd0.data :=  bypass0_ena_p1 ? wr0_data_p1 |
+                       (bypass1_ena_p1 ? wr1_data_p1 |
+                                         bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1)
+    }
 }
 

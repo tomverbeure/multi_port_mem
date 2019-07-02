@@ -31,7 +31,7 @@ class MultiPortMemTop extends Component {
         val rd0     = slave(MemRd(memConfig))
     }
 
-    val u_mem = new MultiPortMem_2w_1rs(memConfig)
+    val u_mem = new MultiPortMem_2w_1rs(memConfig, writeFirst)
     u_mem.io.wr0      <> io.wr0
     u_mem.io.wr1      <> io.wr1
     u_mem.io.rd0      <> io.rd0
