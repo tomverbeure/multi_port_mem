@@ -159,7 +159,8 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
         address   = io.rd0.addr
     )
 
-    val bank0_rd0_xor_data_p1 = (wr0_ena_p1 && rd0_ena_p1 && wr0_addr_p1 === rd0_addr_p1) ? bank0_wr_xor_data_p1 | mem_bank0_rd0_xor_data_p1
+    val bank0_rd0_raw_forward_p1 = wr0_ena_p1 && io.rd0.ena && wr0_addr_p1 === io.rd0.addr
+    val bank0_rd0_xor_data_p1    = bank0_rd0_raw_forward_p1 ? bank0_wr_xor_data_p1) | mem_bank0_rd0_xor_data_p1
 
     //============================================================
     // Write Bank 1
@@ -191,7 +192,8 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
         address   = io.rd0.addr
     )
 
-    val bank1_rd0_xor_data_p1 = (wr1_ena_p1 && rd0_ena_p1 && wr1_addr_p1 === rd0_addr_p1) ? bank1_wr_xor_data_p1 | mem_bank1_rd0_xor_data_p1
+    val bank1_rd0_xor_data_p1 = (wr1_ena_p1 && rd0_ena_p1 && wr1_addr_p1 === rd0_addr_p1) ? RegNext(bank1_wr_xor_data_p1) | mem_bank1_rd0_xor_data_p1
+    //val bank1_rd0_xor_data_p1 = (wr1_ena_p1 && io.rd0.ena && wr1_addr_p1 === io.rd0.addr) ? RegNext(bank1_wr_xor_data_p1) | mem_bank1_rd0_xor_data_p1
 
     io.rd0.data := bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1
 }

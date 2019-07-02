@@ -13,6 +13,7 @@ object MultiPortMemSim {
 
         var stimuli = Array[ ( (Boolean, Long, Long), (Boolean, Long, Long), (Boolean, Long, Long) )](
               // WR0                  WR1                  RD0
+              // Individual read/writes. Dummy cycle in between
               ( (true,  0x10, 0xAA), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
               ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
               ( (false, 0x00, 0x00), (true,  0x20, 0x55), (false, 0x00, 0x00) ),
@@ -20,6 +21,21 @@ object MultiPortMemSim {
               ( (false, 0x00, 0x00), (false, 0x00, 0x00), (true,  0x10, 0xAA) ),
               ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
               ( (false, 0x00, 0x00), (false, 0x00, 0x00), (true,  0x20, 0x55) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
+
+              // Write immediately followed by read
+              ( (true,  0x10, 0x44), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (true,  0x10, 0x44) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
+
+              // Coincident writes, dummy cycle before read
+              ( (true,  0x10, 0x11), (true,  0x20, 0x22), (false, 0x00, 0x00) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (true,  0x10, 0x11) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (true,  0x20, 0x22) ),
+              ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) ),
+
+              //
               ( (false, 0x00, 0x00), (false, 0x00, 0x00), (false, 0x00, 0x00) )
             )
 
@@ -54,6 +70,7 @@ object MultiPortMemSim {
             }
 
             var test_rd       = false
+            var test_rd_addr  = 0L
             var test_rd_data  = 0L
 
             for(stim <- stimuli){
@@ -71,11 +88,12 @@ object MultiPortMemSim {
                 dut.clockDomain.waitRisingEdge()
 
                 if (test_rd){
-                    printf("Exp: %08x, Act: %08x\n", test_rd_data, dut.io.rd0.data.toLong);
+                    printf("RdAddr: %08x -> Exp: %08x, Act: %08x\n", test_rd_addr, test_rd_data, dut.io.rd0.data.toLong);
                     assert(dut.io.rd0.data.toLong == test_rd_data)
                 }
 
                 test_rd      = stim._3._1
+                test_rd_addr = stim._3._2
                 test_rd_data = stim._3._3
 
             }
