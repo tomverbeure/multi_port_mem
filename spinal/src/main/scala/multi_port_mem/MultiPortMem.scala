@@ -90,7 +90,7 @@ class Mem_1w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolicy = dontC
 }
 
 
-class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
+class MultiPortMem_1w_2rs(config: MemConfig, readUnderWrite: ReadUnderWritePolicy = dontCare) extends Component {
     val io = new Bundle {
         val wr0     = slave(MemWr(config))
         val rd0     = slave(MemRd(config))
@@ -105,42 +105,27 @@ class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
     //============================================================
     // RD0 Port RAM
     //============================================================
-    val rd0_ena_p1  = RegNext(io.rd0.ena)
-    val rd0_addr_p1 = RegNext(io.rd0.addr)
+    val u_mem_bank0 = new Mem_1w_1rs(config, readUnderWrite)
+    u_mem_bank0.io.wr_ena    <> io.wr0.ena
+    u_mem_bank0.io.wr_addr   <> io.wr0.addr
+    u_mem_bank0.io.wr_data   <> io.wr0.data
 
-    val u_mem0 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
-    u_mem0.write(
-        enable    = io.wr0.ena,
-        address   = io.wr0.addr,
-        data      = io.wr0.data
-    )
-
-    val rd0_data_mem = u_mem0.readSync(
-        enable    = io.rd0.ena,
-        address   = io.rd0.addr
-    )
-
-    io.rd0.data := (wr0_ena_p1 && rd0_ena_p1 && wr0_addr_p1 === rd0_addr_p1) ? wr0_data_p1 | rd0_data_mem
+    u_mem_bank0.io.rd_ena    <> io.rd0.ena
+    u_mem_bank0.io.rd_addr   <> io.rd0.addr
+    u_mem_bank0.io.rd_data   <> io.rd0.data
 
     //============================================================
     // RD1 Port RAM
     //============================================================
-    val rd1_ena_p1  = RegNext(io.rd1.ena)
-    val rd1_addr_p1 = RegNext(io.rd1.addr)
+    //
+    val u_mem_bank1 = new Mem_1w_1rs(config, readUnderWrite)
+    u_mem_bank1.io.wr_ena    <> io.wr0.ena
+    u_mem_bank1.io.wr_addr   <> io.wr0.addr
+    u_mem_bank1.io.wr_data   <> io.wr0.data
 
-    val u_mem1 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
-    u_mem1.write(
-        enable    = io.wr0.ena,
-        address   = io.wr0.addr,
-        data      = io.wr0.data
-    )
-
-    val rd1_data_mem = u_mem1.readSync(
-        enable    = io.rd1.ena,
-        address   = io.rd1.addr
-    )
-
-    io.rd1.data := (wr0_ena_p1 && rd1_ena_p1 && wr0_addr_p1 === rd1_addr_p1) ? wr0_data_p1 | rd1_data_mem
+    u_mem_bank1.io.rd_ena    <> io.rd1.ena
+    u_mem_bank1.io.rd_addr   <> io.rd1.addr
+    u_mem_bank1.io.rd_data   <> io.rd1.data
 
 }
 
@@ -158,9 +143,6 @@ class MultiPortMem_2w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolic
     val wr1_ena_p1  = RegNext(io.wr1.ena)
     val wr1_addr_p1 = RegNextWhen(io.wr1.addr, io.wr1.ena)
     val wr1_data_p1 = RegNextWhen(io.wr1.data, io.wr1.ena)
-
-    val rd0_ena_p1  = RegNext(io.rd0.ena)
-    val rd0_addr_p1 = RegNextWhen(io.rd0.addr, io.rd0.ena)
 
     val mem_bank0_w1_xor_data_p1 = Bits(config.dataWidth bits)
     val mem_bank1_w0_xor_data_p1 = Bits(config.dataWidth bits)
