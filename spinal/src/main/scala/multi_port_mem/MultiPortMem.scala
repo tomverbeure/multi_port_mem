@@ -82,8 +82,8 @@ class Mem_1w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolicy = dontC
     else {
         val rd_eq_wr = io.wr_addr === io.rd_addr
 
-        val wr_data_p1    = RegNextWhen(io.wr_data, io.wr_ena && io.rd_ena && rd_eq_wr)
         val bypass_ena_p1 = RegNextWhen(io.wr_ena && rd_eq_wr, io.rd_ena)
+        val wr_data_p1    = RegNextWhen(io.wr_data, io.wr_ena && io.rd_ena && rd_eq_wr)
 
         io.rd_data := bypass_ena_p1 ? wr_data_p1 | rd_data_mem
     }
@@ -152,15 +152,15 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
     }
 
     val wr0_ena_p1  = RegNext(io.wr0.ena)
-    val wr0_addr_p1 = RegNext(io.wr0.addr)
-    val wr0_data_p1 = RegNext(io.wr0.data)
+    val wr0_addr_p1 = RegNextWhen(io.wr0.addr, io.wr0.ena)
+    val wr0_data_p1 = RegNextWhen(io.wr0.data, io.wr0.ena)
 
     val wr1_ena_p1  = RegNext(io.wr1.ena)
-    val wr1_addr_p1 = RegNext(io.wr1.addr)
-    val wr1_data_p1 = RegNext(io.wr1.data)
+    val wr1_addr_p1 = RegNextWhen(io.wr1.addr, io.wr1.ena)
+    val wr1_data_p1 = RegNextWhen(io.wr1.data, io.wr1.ena)
 
     val rd0_ena_p1  = RegNext(io.rd0.ena)
-    val rd0_addr_p1 = RegNext(io.rd0.addr)
+    val rd0_addr_p1 = RegNextWhen(io.rd0.addr, io.rd0.ena)
 
     val mem_bank0_w1_xor_data_p1 = Bits(config.dataWidth bits)
     val mem_bank1_w0_xor_data_p1 = Bits(config.dataWidth bits)
@@ -226,6 +226,21 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
     val bank1_rd0_raw_forward_p1 = wr1_ena_p1 && io.rd0.ena && wr1_addr_p1 === io.rd0.addr
     val bank1_rd0_xor_data_p1    = bank1_rd0_raw_forward_p1 ? bank1_wr_xor_data_p1 | mem_bank1_r0_xor_data_p1
 
-    io.rd0.data := bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1
+    //============================================================
+    // Final output
+    //============================================================
+
+
+    val rd0_eq_wr0      = io.wr0.addr === io.rd0.addr
+    val bypass0_ena_p1  = RegNextWhen(io.wr0.ena && rd0_eq_wr0, io.rd0.ena)
+    val bypass0_data_p1 = RegNextWhen(io.wr0.data, io.wr0.ena && io.rd0.ena && rd0_eq_wr0)
+
+    val rd0_eq_wr1      = io.wr1.addr === io.rd0.addr
+    val bypass1_ena_p1  = RegNextWhen(io.wr1.ena && rd0_eq_wr1, io.rd0.ena)
+    val bypass1_data_p1 = RegNextWhen(io.wr1.data, io.wr1.ena && io.rd0.ena && rd0_eq_wr1)
+
+    io.rd0.data :=  bypass0_ena_p1 ? bypass0_data_p1 | 
+                   (bypass1_ena_p1 ? bypass1_data_p1 | 
+                                    bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1) 
 }
 
