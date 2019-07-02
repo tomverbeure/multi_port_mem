@@ -53,6 +53,42 @@ case class MemWr(config: MemConfig) extends Bundle with IMasterSlave
     }
 }
 
+class Mem_1w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolicy = dontCare) extends Component
+{
+    val io = new Bundle {
+        val wr_ena    = in(Bool)
+        val wr_addr   = in(UInt(config.addrWidth bits))
+        val wr_data   = in(Bits(config.dataWidth bits))
+
+        val rd_ena    = in(Bool)
+        val rd_addr   = in(UInt(config.addrWidth bits))
+        val rd_data   = out(Bits(config.dataWidth bits))
+    }
+
+    val u_mem = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
+    u_mem.write(
+        enable    = io.wr_ena,
+        address   = io.wr_addr,
+        data      = io.wr_data
+    )
+
+    val rd_data_mem = u_mem.readSync(
+        enable    = io.rd_ena,
+        address   = io.rd_addr
+    )
+
+    if (readUnderWrite == dontCare || readUnderWrite == readFirst)
+        io.rd_data := rd_data_mem
+    else {
+        val rd_eq_wr = io.wr_addr === io.rd_addr
+
+        val wr_data_p1    = RegNextWhen(io.wr_data, io.wr_ena && io.rd_ena && rd_eq_wr)
+        val bypass_ena_p1 = RegNextWhen(io.wr_ena && rd_eq_wr, io.rd_ena)
+
+        io.rd_data := bypass_ena_p1 ? wr_data_p1 | rd_data_mem
+    }
+}
+
 
 class MultiPortMem_1w_2rs(config: MemConfig) extends Component {
     val io = new Bundle {
@@ -126,8 +162,11 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
     val rd0_ena_p1  = RegNext(io.rd0.ena)
     val rd0_addr_p1 = RegNext(io.rd0.addr)
 
-    val mem_bank1_w0_xor_data_p1 = Bits(config.dataWidth bits)
     val mem_bank0_w1_xor_data_p1 = Bits(config.dataWidth bits)
+    val mem_bank1_w0_xor_data_p1 = Bits(config.dataWidth bits)
+
+    val mem_bank0_r0_xor_data_p1 = Bits(config.dataWidth bits)
+    val mem_bank1_r0_xor_data_p1 = Bits(config.dataWidth bits)
 
     //============================================================
     // Write Bank 0
@@ -136,31 +175,27 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
     val bank0_wr_xor_data_p1 = wr0_data_p1 ^ mem_bank1_w0_xor_data_p1
 
     // Write port RAM
-    val u_mem_bank0_w1 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
-    u_mem_bank0_w1.write(
-        enable    = wr0_ena_p1,
-        address   = wr0_addr_p1,
-        data      = bank0_wr_xor_data_p1
-    )
-    mem_bank0_w1_xor_data_p1 := u_mem_bank0_w1.readSync(
-        enable    = io.wr1.ena,
-        address   = io.wr1.addr
-    )
+    val u_mem_bank0_w1 = new Mem_1w_1rs(config, dontCare)
+    u_mem_bank0_w1.io.wr_ena    <> wr0_ena_p1
+    u_mem_bank0_w1.io.wr_addr   <> wr0_addr_p1
+    u_mem_bank0_w1.io.wr_data   <> bank0_wr_xor_data_p1
+
+    u_mem_bank0_w1.io.rd_ena    <> io.wr1.ena
+    u_mem_bank0_w1.io.rd_addr   <> io.wr1.addr
+    u_mem_bank0_w1.io.rd_data   <> mem_bank0_w1_xor_data_p1
 
     // Read port RAM
-    val u_mem_bank0_r0 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
-    u_mem_bank0_r0.write(
-        enable    = wr0_ena_p1,
-        address   = wr0_addr_p1,
-        data      = bank0_wr_xor_data_p1
-    )
-    val mem_bank0_rd0_xor_data_p1 = u_mem_bank0_r0.readSync(
-        enable    = io.rd0.ena,
-        address   = io.rd0.addr
-    )
+    val u_mem_bank0_r0 = new Mem_1w_1rs(config, writeFirst)
+    u_mem_bank0_r0.io.wr_ena    <> wr0_ena_p1
+    u_mem_bank0_r0.io.wr_addr   <> wr0_addr_p1
+    u_mem_bank0_r0.io.wr_data   <> bank0_wr_xor_data_p1
+
+    u_mem_bank0_r0.io.rd_ena    <> io.rd0.ena
+    u_mem_bank0_r0.io.rd_addr   <> io.rd0.addr
+    u_mem_bank0_r0.io.rd_data   <> mem_bank0_r0_xor_data_p1
 
     val bank0_rd0_raw_forward_p1 = wr0_ena_p1 && io.rd0.ena && wr0_addr_p1 === io.rd0.addr
-    val bank0_rd0_xor_data_p1    = bank0_rd0_raw_forward_p1 ? bank0_wr_xor_data_p1) | mem_bank0_rd0_xor_data_p1
+    val bank0_rd0_xor_data_p1    = bank0_rd0_raw_forward_p1 ? bank0_wr_xor_data_p1 | mem_bank0_r0_xor_data_p1
 
     //============================================================
     // Write Bank 1
@@ -169,31 +204,27 @@ class MultiPortMem_2w_1rs(config: MemConfig) extends Component {
     val bank1_wr_xor_data_p1 = wr1_data_p1 ^ mem_bank0_w1_xor_data_p1
 
     // Write port RAM
-    val u_mem_bank1_w0 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
-    u_mem_bank1_w0.write(
-        enable    = wr1_ena_p1,
-        address   = wr1_addr_p1,
-        data      = bank1_wr_xor_data_p1
-    )
-    mem_bank1_w0_xor_data_p1 := u_mem_bank1_w0.readSync(
-        enable    = io.wr0.ena,
-        address   = io.wr0.addr
-    )
+    val u_mem_bank1_w0 = new Mem_1w_1rs(config, dontCare)
+    u_mem_bank1_w0.io.wr_ena    <> wr1_ena_p1
+    u_mem_bank1_w0.io.wr_addr   <> wr1_addr_p1
+    u_mem_bank1_w0.io.wr_data   <> bank1_wr_xor_data_p1
+
+    u_mem_bank1_w0.io.rd_ena    <> io.wr0.ena
+    u_mem_bank1_w0.io.rd_addr   <> io.wr0.addr
+    u_mem_bank1_w0.io.rd_data   <> mem_bank1_w0_xor_data_p1
 
     // Read port RAM
-    val u_mem_bank1_r0 = Mem(Bits(config.dataWidth bits), wordCount = config.memorySize)
-    u_mem_bank1_r0.write(
-        enable    = wr1_ena_p1,
-        address   = wr1_addr_p1,
-        data      = bank1_wr_xor_data_p1
-    )
-    val mem_bank1_rd0_xor_data_p1 = u_mem_bank1_r0.readSync(
-        enable    = io.rd0.ena,
-        address   = io.rd0.addr
-    )
+    val u_mem_bank1_r0 = new Mem_1w_1rs(config, writeFirst)
+    u_mem_bank1_r0.io.wr_ena    <> wr1_ena_p1
+    u_mem_bank1_r0.io.wr_addr   <> wr1_addr_p1
+    u_mem_bank1_r0.io.wr_data   <> bank1_wr_xor_data_p1
 
-    val bank1_rd0_xor_data_p1 = (wr1_ena_p1 && rd0_ena_p1 && wr1_addr_p1 === rd0_addr_p1) ? RegNext(bank1_wr_xor_data_p1) | mem_bank1_rd0_xor_data_p1
-    //val bank1_rd0_xor_data_p1 = (wr1_ena_p1 && io.rd0.ena && wr1_addr_p1 === io.rd0.addr) ? RegNext(bank1_wr_xor_data_p1) | mem_bank1_rd0_xor_data_p1
+    u_mem_bank1_r0.io.rd_ena    <> io.rd0.ena
+    u_mem_bank1_r0.io.rd_addr   <> io.rd0.addr
+    u_mem_bank1_r0.io.rd_data   <> mem_bank1_r0_xor_data_p1
+
+    val bank1_rd0_raw_forward_p1 = wr1_ena_p1 && io.rd0.ena && wr1_addr_p1 === io.rd0.addr
+    val bank1_rd0_xor_data_p1    = bank1_rd0_raw_forward_p1 ? bank1_wr_xor_data_p1 | mem_bank1_r0_xor_data_p1
 
     io.rd0.data := bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1
 }
