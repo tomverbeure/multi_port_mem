@@ -176,8 +176,6 @@ class MultiPortMem_2w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolic
     u_mem_bank0_r0.io.rd_addr   <> io.rd0.addr
     u_mem_bank0_r0.io.rd_data   <> mem_bank0_r0_xor_data_p1
 
-    val bank0_rd0_raw_forward_p1 = wr0_ena_p1 && io.rd0.ena && wr0_addr_p1 === io.rd0.addr
-    val bank0_rd0_xor_data_p1    = bank0_rd0_raw_forward_p1 ? bank0_wr_xor_data_p1 | mem_bank0_r0_xor_data_p1
 
     //============================================================
     // Write Bank 1
@@ -205,15 +203,12 @@ class MultiPortMem_2w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolic
     u_mem_bank1_r0.io.rd_addr   <> io.rd0.addr
     u_mem_bank1_r0.io.rd_data   <> mem_bank1_r0_xor_data_p1
 
-    val bank1_rd0_raw_forward_p1 = wr1_ena_p1 && io.rd0.ena && wr1_addr_p1 === io.rd0.addr
-    val bank1_rd0_xor_data_p1    = bank1_rd0_raw_forward_p1 ? bank1_wr_xor_data_p1 | mem_bank1_r0_xor_data_p1
-
     //============================================================
     // Final output
     //============================================================
 
     if (readUnderWrite == dontCare || readUnderWrite == readFirst)
-        io.rd0.data := bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1
+        io.rd0.data := mem_bank0_r0_xor_data_p1 ^ mem_bank1_r0_xor_data_p1
     else {
         val rd0_eq_wr0      = io.wr0.addr === io.rd0.addr
         val bypass0_ena_p1  = RegNext(io.wr0.ena && rd0_eq_wr0)
@@ -223,7 +218,7 @@ class MultiPortMem_2w_1rs(config: MemConfig, readUnderWrite: ReadUnderWritePolic
 
         io.rd0.data :=  bypass0_ena_p1 ? wr0_data_p1 |
                        (bypass1_ena_p1 ? wr1_data_p1 |
-                                         bank0_rd0_xor_data_p1 ^ bank1_rd0_xor_data_p1)
+                                         mem_bank0_r0_xor_data_p1 ^ mem_bank1_r0_xor_data_p1)
     }
 }
 
